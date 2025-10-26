@@ -1,23 +1,31 @@
 #!/bin/bash
 set -e
 
-echo "=== ODOO 17 - START GARANTIZADO ==="
+echo "=== ODOO 17 - RUTA CORRECTA ==="
 sleep 15
 
-# Usar la ruta EXACTA donde se instaló Odoo
-ADDONS_PATH="/opt/render/project/src/odoo-source/odoo/addons"
-echo "Addons path GARANTIZADO: $ADDONS_PATH"
+# ¡ESTA ES LA RUTA CORRECTA!
+ADDONS_PATH="/opt/render/project/src/odoo-source/addons"
+echo "Addons path CORREGIDO: $ADDONS_PATH"
 
-# Verificar que existe
+# Verificar que existe el módulo web
 if [ -d "$ADDONS_PATH/web" ]; then
-    echo "✅ MÓDULO WEB CONFIRMADO"
-    echo "Contenido: $(ls $ADDONS_PATH/web | head -5)"
+    echo "✅ MÓDULO WEB ENCONTRADO FINALMENTE!"
+    echo "Contenido del módulo web: $(ls $ADDONS_PATH/web | head -5)"
 else
-    echo "❌ ERROR CRÍTICO: Módulo web no encontrado"
-    echo "Buscando en todo el sistema..."
-    find /opt/render/project/src -name "web" -type d 2>/dev/null
+    echo "❌ ERROR: Módulo web no encontrado en ruta corregida"
     exit 1
 fi
+
+# Verificar otros módulos esenciales
+ESSENTIAL_MODULES=("base" "web" "mail")
+for module in "${ESSENTIAL_MODULES[@]}"; do
+    if [ -d "$ADDONS_PATH/$module" ]; then
+        echo "✅ Módulo $module encontrado"
+    else
+        echo "❌ Módulo $module NO encontrado"
+    fi
+done
 
 # Inicializar base de datos
 echo "=== INICIALIZANDO BASE DE DATOS ==="

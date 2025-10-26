@@ -1,52 +1,46 @@
 #!/bin/bash
 set -e
 
-echo "=== INSTALACIÓN MANUAL ODOO 17 GARANTIZADA ==="
+echo "=== INSTALACIÓN ODOO 17 - RUTA CORRECTA ==="
 
-# Limpiar instalaciones previas
 cd /opt/render/project/src
 rm -rf odoo-17.0 odoo-source 2>/dev/null || true
 
-# Descargar Odoo 17 directamente
-echo "=== DESCARGANDO ODOO 17 DESDE GITHUB ==="
+# Descargar Odoo
 wget -q https://github.com/odoo/odoo/archive/refs/heads/17.0.zip -O odoo-17.0.zip
-
-echo "=== DESCOMPRIMIENDO ==="
 unzip -q odoo-17.0.zip
 mv odoo-17.0 odoo-source
 
-echo "=== INSTALANDO ODOO ==="
+# Instalar
 cd odoo-source
 pip install -e .
 
-echo "=== INSTALANDO DEPENDENCIAS ==="
+# Dependencias
 pip install psycopg2-binary Pillow lxml lxml-html-clean python-dateutil requests Jinja2 Werkzeug MarkupSafe Babel greenlet pytz num2words
 
-echo "=== VERIFICACIÓN FINAL ==="
+echo "=== VERIFICACIÓN RUTA CORRECTA ==="
 cd /opt/render/project/src
 python -c "
 import odoo
 print('✅ Odoo', odoo.release.version)
 
-# Verificar addons path REAL
+# La ruta REAL de los addons
 import odoo.addons
 addons_path = odoo.addons.__path__[0]
-print('✅ Addons path:', addons_path)
+print('✅ Addons path REAL:', addons_path)
 
-# Verificar módulo web
+# Verificar módulos en la ruta REAL
 import os
-web_path = os.path.join(addons_path, 'web')
-if os.path.exists(web_path):
-    print('✅ MÓDULO WEB ENCONTRADO:', web_path)
-    print('Contenido del directorio web:', os.listdir(web_path)[:5])
-else:
-    print('❌ MÓDULO WEB NO ENCONTRADO EN:', web_path)
-    
-# Listar directorio addons completo
-print('Contenido de addons:', os.listdir(addons_path))
+modules_to_check = ['web', 'base', 'mail']
+for module in modules_to_check:
+    module_path = os.path.join(addons_path, module)
+    if os.path.exists(module_path):
+        print(f'✅ {module}: {module_path}')
+    else:
+        print(f'❌ {module}: NO ENCONTRADO')
+
+print('🎉 VERIFICACIÓN COMPLETADA')
 "
 
-echo "=== CREANDO ESTRUCTURA DE DATOS ==="
 mkdir -p /opt/render/project/src/data
-
-echo "🎉 INSTALACIÓN COMPLETADA"
+echo "=== BUILD COMPLETADO ==="
