@@ -1,7 +1,4 @@
-# Instalar Odoo 17 directamente desde el repositorio oficial de GitHub
-https://github.com/odoo/odoo/archive/refs/heads/17.0.zip
-
-# Dependencias necesarias
+# Solo dependencias básicas - Odoo se instala manualmente
 psycopg2-binary
 Pillow
 lxml
