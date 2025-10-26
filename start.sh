@@ -1,60 +1,78 @@
 #!/bin/bash
 set -e
 
-echo "=== INICIANDO ODOO 17 ==="
-echo "=== CONFIGURACIÓN DE PUERTOS ==="
-
-# Debug: mostrar variable PORT
-echo "PORT variable: $PORT"
+echo "=== ODOO 17 - INICIALIZACIÓN FORZADA ==="
+echo "PORT: $PORT"
 echo "DB_HOST: $DB_HOST"
 
-# Si PORT no está definido, usar default
-if [ -z "$PORT" ]; then
-    PORT=8069
-    echo "⚠️ PORT no definido, usando: $PORT"
-else
-    echo "✅ PORT definido: $PORT"
-fi
-
-# Esperar PostgreSQL
-echo "Esperando PostgreSQL..."
 sleep 15
 
-# Obtener addons path
-echo "Buscando addons path..."
-ADDONS_PATH=$(python -c "import odoo.addons; print(odoo.addons.__path__[0])" 2>/dev/null || echo "/opt/render/project/src/.venv/lib/python3.13/site-packages/odoo/addons")
-echo "Addons path: $ADDONS_PATH"
+# Addons path
+ADDONS_PATH="/opt/render/project/src/.venv/lib/python3.13/site-packages/odoo/addons"
+echo "Addons: $ADDONS_PATH"
 
-# Verificar módulo web
-if [ -d "$ADDONS_PATH/web" ]; then
-    echo "✅ Módulo web encontrado"
-else
-    echo "❌ Módulo web NO encontrado, pero continuando..."
+# Verificar si la base de datos necesita inicialización
+echo "=== VERIFICANDO ESTADO DE LA BASE DE DATOS ==="
+python3 -c "
+import psycopg2
+import os
+import sys
+
+try:
+    conn = psycopg2.connect(
+        host=os.getenv('DB_HOST'),
+        port=int(os.getenv('DB_PORT', 5432)),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME')
+    )
+    
+    # Verificar si existe alguna tabla de Odoo
+    cur = conn.cursor()
+    cur.execute('''SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'ir_module_module'
+    )''')
+    has_tables = cur.fetchone()[0]
+    conn.close()
+    
+    if has_tables:
+        print('✅ Base de datos YA INICIALIZADA')
+        sys.exit(0)
+    else:
+        print('🔄 Base de datos VACÍA - necesita inicialización')
+        sys.exit(1)
+        
+except Exception as e:
+    print(f'❌ Error verificando BD: {e}')
+    print('🔄 Asumiendo que necesita inicialización')
+    sys.exit(1)
+"
+
+# Si la BD está vacía, inicializarla
+if [ $? -ne 0 ]; then
+    echo "=== INICIALIZANDO BASE DE DATOS ODOO ==="
+    echo "⏰ Esto tomará 5-15 minutos..."
+    
+    python -m odoo \
+        --db_host=$DB_HOST \
+        --db_port=$DB_PORT \
+        --db_user=$DB_USER \
+        --db_password=$DB_PASSWORD \
+        --database=$DB_NAME \
+        --addons-path="$ADDONS_PATH" \
+        --init=base \
+        --without-demo=all \
+        --stop-after-init
+        
+    if [ $? -eq 0 ]; then
+        echo "🎉 BASE DE DATOS INICIALIZADA EXITOSAMENTE"
+    else
+        echo "⚠️ Error en inicialización, continuando..."
+    fi
 fi
 
-# Configuración de base de datos
-DB_HOST=${DB_HOST:-localhost}
-DB_PORT=${DB_PORT:-5432}
-DB_NAME=${DB_NAME:-odoo17}
-DB_USER=${DB_USER:-odoo}
-DB_PASSWORD=${DB_PASSWORD:-odoo}
-
-echo "=== INICIALIZANDO BASE DE DATOS ==="
-python -m odoo \
-    --db_host=$DB_HOST \
-    --db_port=$DB_PORT \
-    --db_user=$DB_USER \
-    --db_password=$DB_PASSWORD \
-    --database=$DB_NAME \
-    --addons-path="$ADDONS_PATH" \
-    --init=base \
-    --without-demo=all \
-    --stop-after-init || echo "⚠️ Inicialización falló o ya estaba hecha"
-
-echo "=== INICIANDO SERVIDOR ODOO ==="
-echo "🚀 INICIANDO EN PUERTO: $PORT"
-
-# Forzar opciones de network para Render
+echo "=== INICIANDO ODOO ==="
 exec python -m odoo \
     --db_host=$DB_HOST \
     --db_port=$DB_PORT \
