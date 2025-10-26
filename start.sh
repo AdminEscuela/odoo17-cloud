@@ -5,17 +5,72 @@ echo "=== INICIANDO ODOO 17 ==="
 echo "Esperando PostgreSQL..."
 sleep 15
 
-# Obtener addons path
-ADDONS_PATH=$(python -c "import odoo.addons; print(odoo.addons.__path__[0])")
-echo "Addons: $ADDONS_PATH"
+echo "=== BUSCANDO MÓDULOS ODOO ==="
 
-# Verificar módulo web
-if [ -d "$ADDONS_PATH/web" ]; then
-    echo "✅ Módulo web encontrado"
-else
-    echo "❌ Error: Módulo web no encontrado"
-    exit 1
+# Función para encontrar la ruta correcta de addons
+find_addons_path() {
+    python3 -c "
+import odoo
+import os
+import sys
+
+print('🔍 Buscando módulos Odoo...')
+
+# Rutas posibles donde podrían estar los addons
+possible_paths = [
+    # Ruta principal de addons
+    odoo.addons.__path__[0],
+    # Rutas alternativas
+    '/opt/render/project/src/.venv/lib/python3.13/site-packages/odoo/addons',
+    '/opt/render/project/src/.venv/lib/python3.13/site-packages/odoo/odoo/addons',
+    '/opt/render/project/src/.venv/lib/python3.13/site-packages/addons',
+    # Ruta de instalación desde GitHub
+    '/opt/render/project/src/.venv/lib/python3.13/site-packages/odoo-17.0-py3.13.egg/odoo/addons',
+]
+
+# Buscar el módulo web en todas las rutas
+for path in possible_paths:
+    if os.path.exists(path):
+        web_path = os.path.join(path, 'web')
+        if os.path.exists(web_path):
+            print(f'✅ Módulo web encontrado en: {web_path}')
+            print(path)
+            sys.exit(0)
+        else:
+            print(f'ℹ️  Ruta existe pero sin web: {path}')
+            # Listar contenido para debugging
+            try:
+                files = os.listdir(path)
+                print(f'   Contenido: {files[:5]}...')
+            except:
+                print('   No se puede listar contenido')
+
+print('❌ No se encontró el módulo web en ninguna ruta')
+print('=== DEBUG: Estructura de directorios ===')
+# Buscar recursivamente
+import subprocess
+try:
+    result = subprocess.run(['find', '/opt/render/project/src/.venv', '-name', '*web*', '-type', 'd'], 
+                          capture_output=True, text=True, timeout=30)
+    print('Directorios web encontrados:')
+    print(result.stdout[:2000])
+except Exception as e:
+    print(f'Error buscando: {e}')
+
+sys.exit(1)
+"
+}
+
+echo "=== Buscando ruta de addons ==="
+ADDONS_PATH=$(find_addons_path)
+
+if [ $? -ne 0 ]; then
+    echo "❌ NO SE PUDO ENCONTRAR EL MÓDULO WEB"
+    echo "⚠️  Usando ruta por defecto y continuando..."
+    ADDONS_PATH="/opt/render/project/src/.venv/lib/python3.13/site-packages/odoo/addons"
 fi
+
+echo "Addons path final: $ADDONS_PATH"
 
 # Configuración
 DB_HOST=${DB_HOST:-localhost}
@@ -25,7 +80,7 @@ DB_USER=${DB_USER:-odoo}
 DB_PASSWORD=${DB_PASSWORD:-odoo}
 PORT=${PORT:-8069}
 
-echo "=== Inicializando base de datos ==="
+echo "=== INICIALIZANDO BASE DE DATOS ==="
 python -m odoo \
     --db_host=$DB_HOST \
     --db_port=$DB_PORT \
@@ -35,9 +90,9 @@ python -m odoo \
     --addons-path="$ADDONS_PATH" \
     --init=base \
     --without-demo=all \
-    --stop-after-init || echo "⚠️ Inicialización saltada"
+    --stop-after-init || echo "⚠️ Inicialización falló o ya estaba hecha"
 
-echo "=== Iniciando Odoo 17 ==="
+echo "=== INICIANDO SERVIDOR ODOO ==="
 exec python -m odoo \
     --db_host=$DB_HOST \
     --db_port=$DB_PORT \
