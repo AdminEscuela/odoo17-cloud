@@ -1,5 +1,6 @@
-# Instalar Odoo desde el paquete correcto
-odoo
+# Instalar Odoo 17 directamente desde GitHub
+https://github.com/odoo/odoo/archive/refs/heads/17.0.zip
+
 psycopg2-binary
 Pillow
 lxml
