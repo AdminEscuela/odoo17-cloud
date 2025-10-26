@@ -1,9 +1,11 @@
 #!/bin/bash
 set -e
 
-echo "=== ODOO 17 - INICIALIZACIÓN FORZADA ==="
+echo "=== ODOO 17 - DEBUG COMPLETO ==="
 echo "PORT: $PORT"
 echo "DB_HOST: $DB_HOST"
+echo "DB_NAME: $DB_NAME"
+echo "DB_USER: $DB_USER"
 
 sleep 15
 
@@ -11,65 +13,40 @@ sleep 15
 ADDONS_PATH="/opt/render/project/src/.venv/lib/python3.13/site-packages/odoo/addons"
 echo "Addons: $ADDONS_PATH"
 
-# Verificar si la base de datos necesita inicialización
-echo "=== VERIFICANDO ESTADO DE LA BASE DE DATOS ==="
-python3 -c "
-import psycopg2
-import os
-import sys
+# Verificar que el módulo web existe
+if [ -d "$ADDONS_PATH/web" ]; then
+    echo "✅ Módulo web encontrado"
+else
+    echo "❌ MÓDULO WEB NO ENCONTRADO"
+    echo "Buscando en el sistema..."
+    find /opt/render/project/src -name "web" -type d 2>/dev/null | head -5
+    exit 1
+fi
 
-try:
-    conn = psycopg2.connect(
-        host=os.getenv('DB_HOST'),
-        port=int(os.getenv('DB_PORT', 5432)),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        database=os.getenv('DB_NAME')
-    )
-    
-    # Verificar si existe alguna tabla de Odoo
-    cur = conn.cursor()
-    cur.execute('''SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'ir_module_module'
-    )''')
-    has_tables = cur.fetchone()[0]
-    conn.close()
-    
-    if has_tables:
-        print('✅ Base de datos YA INICIALIZADA')
-        sys.exit(0)
-    else:
-        print('🔄 Base de datos VACÍA - necesita inicialización')
-        sys.exit(1)
-        
-except Exception as e:
-    print(f'❌ Error verificando BD: {e}')
-    print('🔄 Asumiendo que necesita inicialización')
-    sys.exit(1)
-"
+echo "=== INICIALIZACIÓN DE BASE DE DATOS ==="
+echo "Ejecutando comando de inicialización..."
 
-# Si la BD está vacía, inicializarla
-if [ $? -ne 0 ]; then
-    echo "=== INICIALIZANDO BASE DE DATOS ODOO ==="
-    echo "⏰ Esto tomará 5-15 minutos..."
-    
-    python -m odoo \
-        --db_host=$DB_HOST \
-        --db_port=$DB_PORT \
-        --db_user=$DB_USER \
-        --db_password=$DB_PASSWORD \
-        --database=$DB_NAME \
-        --addons-path="$ADDONS_PATH" \
-        --init=base \
-        --without-demo=all \
-        --stop-after-init
-        
-    if [ $? -eq 0 ]; then
-        echo "🎉 BASE DE DATOS INICIALIZADA EXITOSAMENTE"
-    else
-        echo "⚠️ Error en inicialización, continuando..."
-    fi
+# Ejecutar inicialización con máximo logging
+python -m odoo \
+    --db_host=$DB_HOST \
+    --db_port=$DB_PORT \
+    --db_user=$DB_USER \
+    --db_password=$DB_PASSWORD \
+    --database=$DB_NAME \
+    --addons-path="$ADDONS_PATH" \
+    --init=base \
+    --without-demo=all \
+    --stop-after-init \
+    --log-level=debug
+
+EXIT_CODE=$?
+echo "Código de salida de inicialización: $EXIT_CODE"
+
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "🎉 INICIALIZACIÓN EXITOSA"
+else
+    echo "❌ INICIALIZACIÓN FALLÓ"
+    echo "Continuando de todos modos..."
 fi
 
 echo "=== INICIANDO ODOO ==="
@@ -82,4 +59,5 @@ exec python -m odoo \
     --http-interface=0.0.0.0 \
     --http-port=$PORT \
     --addons-path="$ADDONS_PATH" \
-    --without-demo=all
+    --without-demo=all \
+    --log-level=info
