@@ -1,47 +1,31 @@
 #!/bin/bash
 set -e
 
-echo "=== INSTALANDO ODOO 17 DESDE GITHUB ==="
+echo "=== INSTALACIÓN COMPLETA ODOO 17 ==="
 python -m pip install --upgrade pip
 
-echo "=== Instalando Odoo y dependencias ==="
-pip install -r requirements.txt
+echo "=== Descargando Odoo desde GitHub ==="
+# Descargar y instalar manualmente
+cd /opt/render/project/src
+wget https://github.com/odoo/odoo/archive/refs/heads/17.0.zip -O odoo-17.0.zip
+unzip -q odoo-17.0.zip
+cd odoo-17.0
 
-echo "=== Verificando instalación ==="
+echo "=== Instalando Odoo en desarrollo mode ==="
+pip install -e .
+
+echo "=== Instalando dependencias ==="
+pip install psycopg2-binary Pillow lxml lxml-html-clean python-dateutil requests Jinja2 Werkzeug MarkupSafe Babel greenlet pytz num2words
+
+echo "=== Verificando ==="
 python -c "
-try:
-    import odoo
-    print(f'🎉 ODOO {odoo.release.version} INSTALADO CORRECTAMENTE')
-    print(f'📍 Ruta: {odoo.__file__}')
-    
-    # Verificar addons path
-    import odoo.addons
-    addons_path = odoo.addons.__path__[0]
-    print(f'📁 Addons path: {addons_path}')
-    
-    # Verificar módulos esenciales
-    import os
-    essential_modules = ['web', 'base', 'mail']
-    for module in essential_modules:
-        module_path = os.path.join(addons_path, module)
-        if os.path.exists(module_path):
-            print(f'✅ Módulo {module} encontrado')
-        else:
-            print(f'❌ Módulo {module} NO encontrado')
-            # Listar contenido para debugging
-            print(f'   Contenido de {addons_path}:')
-            try:
-                print(f'   {os.listdir(addons_path)[:10]}')
-            except:
-                print('   No se pudo listar contenido')
-    
-    print('✅ TODAS LAS VERIFICACIONES COMPLETADAS')
-    
-except Exception as e:
-    print(f'❌ ERROR CRÍTICO: {e}')
-    import traceback
-    traceback.print_exc()
-    exit(1)
+import odoo
+print(f'✅ Odoo {odoo.release.version}')
+import odoo.addons
+path = odoo.addons.__path__[0]
+print(f'Addons: {path}')
+import os
+print(f'Contenido: {os.listdir(path)[:10]}')
 "
 
-echo "=== BUILD EXITOSO ==="
+echo "=== Build completado ==="
