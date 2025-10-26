@@ -9,9 +9,10 @@ echo "=== VERIFICANDO CONFIGURACIÓN RENDER ==="
 python -c "
 import os
 print('Variables de entorno críticas:')
-print(f'PORT: {os.getenv(\\\"PORT\\\", \\\"NO DEFINIDO\\\")}')
-print(f'DB_HOST: {os.getenv(\\\"DB_HOST\\\", \\\"NO DEFINIDO\\\")}')
-print(f'DB_NAME: {os.getenv(\\\"DB_NAME\\\", \\\"NO DEFINIDO\\\")}')
+print('PORT:', os.getenv('PORT', 'NO DEFINIDO'))
+print('DB_HOST:', os.getenv('DB_HOST', 'NO DEFINIDO'))
+print('DB_NAME:', os.getenv('DB_NAME', 'NO DEFINIDO'))
 "
 
 python -c "import odoo; print(f'✅ Odoo {odoo.release.version}')"
+python -c "import odoo.addons; print(f'✅ Addons path: {odoo.addons.__path__[0]}')"
